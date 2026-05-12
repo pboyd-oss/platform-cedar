@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	cedar "github.com/cedar-policy/cedar-go"
 )
@@ -95,8 +96,7 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		if policy == nil {
 			continue
 		}
-		anns := policy.Annotations()
-		if msg, ok := anns["reason"]; ok {
+		if msg, ok := policy.Annotations()["reason"]; ok {
 			resp.Reasons = append(resp.Reasons, string(msg))
 		}
 	}
@@ -124,8 +124,9 @@ func loadPolicies(dir string) (*cedar.PolicySet, error) {
 		if err != nil {
 			return nil, err
 		}
+		prefix := strings.TrimSuffix(entry.Name(), ".cedar")
 		for id, p := range ps.All() {
-			combined.Add(id, p)
+			combined.Add(cedar.PolicyID(prefix+"/"+string(id)), p)
 		}
 	}
 	return combined, nil

@@ -4,7 +4,7 @@ permit (
   resource is TuxGrid::Image
 );
 
-// All four attestation types required for production
+@reason("one or more required attestation types absent for production promotion")
 forbid (
   principal is TuxGrid::Pipeline,
   action == TuxGrid::Action::"Promote",
@@ -18,10 +18,9 @@ when {
     "https://tuxgrid.com/attestation/scan/v1",
     "https://tuxgrid.com/attestation/pipeline/v1"
   ])
-}
-annotations { "reason": "one or more required attestation types absent for production promotion" };
+};
 
-// Scan must be fresh at promotion time (24h)
+@reason("scan/v1 attestation is older than 24 hours")
 forbid (
   principal is TuxGrid::Pipeline,
   action == TuxGrid::Action::"Promote",
@@ -30,5 +29,4 @@ forbid (
 when {
   context.targetTier == "production" &&
   context.scanAgeSeconds > 86400
-}
-annotations { "reason": "scan/v1 attestation is older than 24 hours" };
+};
