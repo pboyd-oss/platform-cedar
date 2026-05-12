@@ -3,3 +3,11 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
+configMapGenerator:
+  - name: cedar-policies
+    files:
+      - ../policies/attest-gate.cedar
+      - ../policies/promote-gate.cedar
+      - ../policies/audit-gap.cedar
+generatorOptions:
+  disableNameSuffixHash: true

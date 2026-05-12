@@ -7,6 +7,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /cedar-sidec
 
 FROM scratch
 COPY --from=builder /cedar-sidecar /cedar-sidecar
-COPY policies/ /policies/
 COPY schema/ /schema/
 ENTRYPOINT ["/cedar-sidecar"]
