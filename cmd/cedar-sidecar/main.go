@@ -54,26 +54,25 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var principal cedar.EntityUID
-	if err := json.Unmarshal([]byte(`"`+req.Principal+`"`), &principal); err != nil {
-		// Try JSON object form {"type":"...","id":"..."}
+	if err := principal.UnmarshalCedar([]byte(req.Principal)); err != nil {
 		if err2 := json.Unmarshal([]byte(req.Principal), &principal); err2 != nil {
-			http.Error(w, "invalid principal", http.StatusBadRequest)
+			http.Error(w, "invalid principal: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 	}
 
 	var action cedar.EntityUID
-	if err := json.Unmarshal([]byte(`"`+req.Action+`"`), &action); err != nil {
+	if err := action.UnmarshalCedar([]byte(req.Action)); err != nil {
 		if err2 := json.Unmarshal([]byte(req.Action), &action); err2 != nil {
-			http.Error(w, "invalid action", http.StatusBadRequest)
+			http.Error(w, "invalid action: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 	}
 
 	var resource cedar.EntityUID
-	if err := json.Unmarshal([]byte(`"`+req.Resource+`"`), &resource); err != nil {
+	if err := resource.UnmarshalCedar([]byte(req.Resource)); err != nil {
 		if err2 := json.Unmarshal([]byte(req.Resource), &resource); err2 != nil {
-			http.Error(w, "invalid resource", http.StatusBadRequest)
+			http.Error(w, "invalid resource: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 	}

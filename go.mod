@@ -1,6 +1,6 @@
 module github.com/pboyd-oss/platform-cedar
 
-go 1.26.3
+go 1.24
 
 require github.com/cedar-policy/cedar-go v1.6.0
 

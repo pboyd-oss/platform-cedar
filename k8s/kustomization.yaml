@@ -9,5 +9,6 @@ configMapGenerator:
       - ../policies/attest-gate.cedar
       - ../policies/promote-gate.cedar
       - ../policies/audit-gap.cedar
+      - ../policies/token-gate.cedar
 generatorOptions:
   disableNameSuffixHash: true
