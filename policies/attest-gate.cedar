@@ -103,3 +103,19 @@ forbid (
   resource is TuxGrid::Image
 )
 unless { context.calledLibrarySteps.contains("jenkins-library::microservicePipeline") };
+
+@reason("build executed processes outside declared pipeline steps — possible supply chain injection")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when { context.auditAnomalyCount > 0 };
+
+@reason("build made network connections outside declared pipeline steps — possible exfiltration or C2")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when { context.auditUnexpectedNetworkCount > 0 };
