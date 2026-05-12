@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	cedar "github.com/cedar-policy/cedar-go"
 )
@@ -100,6 +103,9 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 			resp.Reasons = append(resp.Reasons, string(msg))
 		}
 	}
+	if decision == cedar.Deny {
+		fireAlert(req.Principal, req.Action, req.Resource, resp.Reasons)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -164,4 +170,37 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+var alertmanagerURL = envOr("ALERTMANAGER_URL", "")
+
+func fireAlert(principal, action, resource string, reasons []string) {
+	if alertmanagerURL == "" {
+		return
+	}
+	msg := strings.Join(reasons, "; ")
+	if msg == "" {
+		msg = "policy denied"
+	}
+	now := time.Now().UTC()
+	payload, _ := json.Marshal([]map[string]any{{
+		"labels": map[string]string{
+			"alertname": "CedarPolicyDeny",
+			"action":    action,
+			"severity":  "warning",
+		},
+		"annotations": map[string]string{
+			"summary": fmt.Sprintf("Cedar denied %s for %s on %s", action, principal, resource),
+			"reason":  msg,
+		},
+		"startsAt": now.Format(time.RFC3339),
+		"endsAt":   now.Add(5 * time.Minute).Format(time.RFC3339),
+	}})
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Post(alertmanagerURL+"/api/v1/alerts", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		log.Printf("alertmanager post failed: %v", err)
+		return
+	}
+	resp.Body.Close()
 }

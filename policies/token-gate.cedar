@@ -12,7 +12,7 @@ forbid (
 )
 unless { context.scanAttestationVerified };
 
-@reason("production credentials require all four attestation types on the image")
+@reason("production credentials require all attestation types on the image including SLSA provenance and SBOM")
 forbid (
   principal is TuxGrid::Team,
   action == TuxGrid::Action::"IssueCredentials",
@@ -24,6 +24,8 @@ when {
     "https://tuxgrid.com/attestation/build/v1",
     "https://tuxgrid.com/attestation/tests/v1",
     "https://tuxgrid.com/attestation/scan/v1",
-    "https://tuxgrid.com/attestation/pipeline/v1"
+    "https://tuxgrid.com/attestation/pipeline/v1",
+    "slsaprovenance1",
+    "cyclonedx"
   ])
 };

@@ -32,6 +32,8 @@ spec:
               value: /policies
             - name: LISTEN_ADDR
               value: :8080
+            - name: ALERTMANAGER_URL
+              value: "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093"
           livenessProbe:
             httpGet:
               path: /healthz
