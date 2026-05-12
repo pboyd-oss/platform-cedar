@@ -1,0 +1,60 @@
+namespace TuxGrid {
+
+  entity Namespace {
+    "tier": String,
+  };
+
+  entity Team in [Namespace] {
+    "slug": String,
+    "coverageThreshold": Long,
+  };
+
+  entity Pipeline in [Team] {
+    "jobPath": String,
+    "branch": String,
+    "triggeredBySCM": Bool,
+    "hasAuditId": Bool,
+    "declaredBuild": Bool,
+    "declaredTest": Bool,
+  };
+
+  entity Image {
+    "digest": String,
+    "repo": String,
+  };
+
+  action Attest appliesTo {
+    principal: [Pipeline],
+    resource:  [Image],
+    context: {
+      "testsRun":           Long,
+      "testsFailed":        Long,
+      "lineCoveragePct":    Long,
+      "coverageThreshold":  Long,
+      "hasArtifactsJson":   Bool,
+      "hasScanAttestation": Bool,
+      "scanAgeSeconds":     Long,
+      "completedStages":    Set<String>,
+      "calledLibrarySteps": Set<String>,
+    }
+  };
+
+  action Promote appliesTo {
+    principal: [Pipeline],
+    resource:  [Image],
+    context: {
+      "attestationTypes": Set<String>,
+      "scanAgeSeconds":   Long,
+      "targetTier":       String,
+    }
+  };
+
+  action AuditCompliance appliesTo {
+    principal: [Team],
+    resource:  [Pipeline],
+    context: {
+      "lastAttestationAgeSeconds": Long,
+      "attestationTypes":          Set<String>,
+    }
+  };
+}
