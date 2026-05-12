@@ -3,6 +3,21 @@ pipeline {
         kubernetes {
             cloud 'kubernetes'
             inheritFrom 'platform-builder'
+            yaml '''
+                spec:
+                  containers:
+                  - name: golang
+                    image: harbor.tuxgrid.com/docker.io/golang:1.24-alpine
+                    command: [cat]
+                    tty: true
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 256Mi
+                      limits:
+                        cpu: 1
+                        memory: 512Mi
+            '''
         }
     }
 
@@ -20,6 +35,17 @@ pipeline {
     }
 
     stages {
+        stage('Test') {
+            steps {
+                container('golang') {
+                    sh '''
+                        cd cmd/cedar-sidecar
+                        go test ./... -v -count=1
+                    '''
+                }
+            }
+        }
+
         stage('Build') {
             steps {
                 container('kaniko') {
