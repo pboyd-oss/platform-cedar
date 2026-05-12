@@ -21,15 +21,17 @@ func init() {
 // passingCtx returns a context that satisfies all attest-gate policies.
 func passingCtx() map[string]any {
 	return map[string]any{
-		"testsRun":           float64(42),
-		"testsFailed":        float64(0),
-		"lineCoveragePct":    float64(85),
-		"coverageThreshold":  float64(70),
-		"hasArtifactsJson":   true,
-		"hasScanAttestation": true,
-		"scanAgeSeconds":     float64(0),
-		"completedStages":    []any{"Test", "Build", "Release"},
-		"calledLibrarySteps": []any{"jenkins-library::microservicePipeline"},
+		"testsRun":                    float64(42),
+		"testsFailed":                 float64(0),
+		"lineCoveragePct":             float64(85),
+		"coverageThreshold":           float64(70),
+		"hasArtifactsJson":            true,
+		"hasScanAttestation":          true,
+		"scanAgeSeconds":              float64(0),
+		"completedStages":             []any{"Test", "Build", "Release"},
+		"calledLibrarySteps":          []any{"jenkins-library::microservicePipeline", "jenkins-library::runTests", "jenkins-library::buildApp"},
+		"auditAnomalyCount":           float64(0),
+		"auditUnexpectedNetworkCount": float64(0),
 	}
 }
 
@@ -257,6 +259,58 @@ func TestAttest_Deny_MissingAuditId(t *testing.T) {
 	}
 	if !slices.Contains(reasons, "PLATFORM_AUDIT_ID missing — audit-graph-listener was not active for this build") {
 		t.Errorf("expected audit ID reason, got: %v", reasons)
+	}
+}
+
+func TestAttest_Deny_TestStageBypassedLibrary(t *testing.T) {
+	ctx := passingCtx()
+	ctx["calledLibrarySteps"] = []any{"jenkins-library::microservicePipeline", "jenkins-library::buildApp"}
+
+	decision, reasons := authorize(t, passingEntities(), ctx)
+	if decision != "DENY" {
+		t.Errorf("expected DENY, got ALLOW")
+	}
+	if !slices.Contains(reasons, "Test stage ran but runTests from jenkins-library was not called — platform test runner was bypassed") {
+		t.Errorf("expected runTests reason, got: %v", reasons)
+	}
+}
+
+func TestAttest_Deny_BuildStageBypassedLibrary(t *testing.T) {
+	ctx := passingCtx()
+	ctx["calledLibrarySteps"] = []any{"jenkins-library::microservicePipeline", "jenkins-library::runTests"}
+
+	decision, reasons := authorize(t, passingEntities(), ctx)
+	if decision != "DENY" {
+		t.Errorf("expected DENY, got ALLOW")
+	}
+	if !slices.Contains(reasons, "Build stage ran but no platform build step was called — image may not have been built through platform tooling") {
+		t.Errorf("expected build step reason, got: %v", reasons)
+	}
+}
+
+func TestAttest_Deny_AuditAnomaly(t *testing.T) {
+	ctx := passingCtx()
+	ctx["auditAnomalyCount"] = float64(2)
+
+	decision, reasons := authorize(t, passingEntities(), ctx)
+	if decision != "DENY" {
+		t.Errorf("expected DENY, got ALLOW")
+	}
+	if !slices.Contains(reasons, "build executed processes outside declared pipeline steps — possible supply chain injection") {
+		t.Errorf("expected anomaly reason, got: %v", reasons)
+	}
+}
+
+func TestAttest_Deny_UnexpectedNetwork(t *testing.T) {
+	ctx := passingCtx()
+	ctx["auditUnexpectedNetworkCount"] = float64(1)
+
+	decision, reasons := authorize(t, passingEntities(), ctx)
+	if decision != "DENY" {
+		t.Errorf("expected DENY, got ALLOW")
+	}
+	if !slices.Contains(reasons, "build made network connections outside declared pipeline steps — possible exfiltration or C2") {
+		t.Errorf("expected unexpected network reason, got: %v", reasons)
 	}
 }
 

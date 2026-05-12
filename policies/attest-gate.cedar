@@ -104,6 +104,33 @@ forbid (
 )
 unless { context.calledLibrarySteps.contains("jenkins-library::microservicePipeline") };
 
+@reason("Test stage ran but runTests from jenkins-library was not called — platform test runner was bypassed")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when {
+  principal.declaredTest &&
+  context.completedStages.contains("Test") &&
+  !context.calledLibrarySteps.contains("jenkins-library::runTests")
+};
+
+@reason("Build stage ran but no platform build step was called — image may not have been built through platform tooling")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when {
+  principal.declaredBuild &&
+  context.completedStages.contains("Build") &&
+  !context.calledLibrarySteps.containsAny([
+    "jenkins-library::buildApp",
+    "jenkins-library::buildAndPushImage"
+  ])
+};
+
 @reason("build executed processes outside declared pipeline steps — possible supply chain injection")
 forbid (
   principal is TuxGrid::Pipeline,
