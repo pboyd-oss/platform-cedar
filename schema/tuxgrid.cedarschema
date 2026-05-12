@@ -23,19 +23,25 @@ namespace TuxGrid {
     "repo": String,
   };
 
+  entity Environment {
+    "tier": String,
+  };
+
   action Attest appliesTo {
     principal: [Pipeline],
     resource:  [Image],
     context: {
-      "testsRun":           Long,
-      "testsFailed":        Long,
-      "lineCoveragePct":    Long,
-      "coverageThreshold":  Long,
-      "hasArtifactsJson":   Bool,
-      "hasScanAttestation": Bool,
-      "scanAgeSeconds":     Long,
-      "completedStages":    Set<String>,
-      "calledLibrarySteps": Set<String>,
+      "testsRun":                   Long,
+      "testsFailed":                Long,
+      "lineCoveragePct":            Long,
+      "coverageThreshold":          Long,
+      "hasArtifactsJson":           Bool,
+      "hasScanAttestation":         Bool,
+      "scanAgeSeconds":             Long,
+      "completedStages":            Set<String>,
+      "calledLibrarySteps":         Set<String>,
+      "auditAnomalyCount":          Long,
+      "auditUnexpectedNetworkCount": Long,
     }
   };
 
@@ -55,6 +61,18 @@ namespace TuxGrid {
     context: {
       "lastAttestationAgeSeconds": Long,
       "attestationTypes":          Set<String>,
+    }
+  };
+
+  action IssueCredentials appliesTo {
+    principal: [Team],
+    resource:  [Environment],
+    context: {
+      "role_arn":                String,
+      "image_ref":               String,
+      "environment":             String,
+      "scanAttestationVerified": Bool,
+      "attestationTypes":        Set<String>,
     }
   };
 }
