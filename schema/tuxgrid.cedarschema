@@ -42,6 +42,7 @@ namespace TuxGrid {
       "calledLibrarySteps":         Set<String>,
       "auditAnomalyCount":          Long,
       "auditUnexpectedNetworkCount": Long,
+      "hasUnpinnedLibraries":        Bool,
     }
   };
 

@@ -146,3 +146,11 @@ forbid (
   resource is TuxGrid::Image
 )
 when { context.auditUnexpectedNetworkCount > 0 };
+
+@reason("shared library loaded at a branch name, not a pinned SHA — version is unverifiable")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when { context.hasUnpinnedLibraries };
