@@ -27,7 +27,7 @@ func mkEntity(u cedar.EntityUID, attrs map[string]any, parents ...cedar.EntityUI
 	return cedar.Entity{
 		UID:        u,
 		Attributes: cedar.NewRecord(toRecordMap(attrs)),
-		Parents:    parents,
+		Parents:    cedar.NewEntityUIDSet(parents...),
 	}
 }
 
@@ -39,7 +39,7 @@ func mkEntities(es ...cedar.Entity) cedar.EntityMap {
 	return em
 }
 
-func authorize(ps *cedar.PolicySet, principal, action, resource cedar.EntityUID, em cedar.EntityMap, ctx map[string]any) cedar.Decision {
+func runAuth(ps *cedar.PolicySet, principal, action, resource cedar.EntityUID, em cedar.EntityMap, ctx map[string]any) cedar.Decision {
 	dec, _ := ps.IsAuthorized(em, cedar.Request{
 		Principal: principal,
 		Action:    action,
@@ -105,7 +105,7 @@ func goodAttestCtx() map[string]any {
 
 func TestAttestGate_Allow(t *testing.T) {
 	ps := loadTestPolicies(t)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), goodAttestCtx())
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), goodAttestCtx())
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW for fully-compliant build")
 	}
@@ -115,7 +115,7 @@ func TestAttestGate_DenyNoAuditId(t *testing.T) {
 	ps := loadTestPolicies(t)
 	attrs := goodPipelineAttrs()
 	attrs["hasAuditId"] = false
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, attrs), goodAttestCtx())
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, attrs), goodAttestCtx())
 	if dec != cedar.Deny {
 		t.Error("expected DENY: missing PLATFORM_AUDIT_ID")
 	}
@@ -125,7 +125,7 @@ func TestAttestGate_DenyNoTests(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["testsRun"] = float64(0)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: zero tests run")
 	}
@@ -135,7 +135,7 @@ func TestAttestGate_DenyFailingTests(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["testsFailed"] = float64(2)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: failing tests")
 	}
@@ -146,7 +146,7 @@ func TestAttestGate_DenyCoverageBelowThreshold(t *testing.T) {
 	ctx := goodAttestCtx()
 	ctx["lineCoveragePct"] = float64(7000)
 	ctx["coverageThreshold"] = float64(8000)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: coverage below threshold")
 	}
@@ -156,7 +156,7 @@ func TestAttestGate_DenyNoArtifactsJson(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["hasArtifactsJson"] = false
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: no artifacts.json")
 	}
@@ -166,7 +166,7 @@ func TestAttestGate_DenyManualTrigger(t *testing.T) {
 	ps := loadTestPolicies(t)
 	attrs := goodPipelineAttrs()
 	attrs["triggeredBySCM"] = false
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, attrs), goodAttestCtx())
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, attrs), goodAttestCtx())
 	if dec != cedar.Deny {
 		t.Error("expected DENY: manually triggered build")
 	}
@@ -176,7 +176,7 @@ func TestAttestGate_DenyNoScanAttestation(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["hasScanAttestation"] = false
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: no scan attestation")
 	}
@@ -186,7 +186,7 @@ func TestAttestGate_DenyBuildNotCompleted(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["completedStages"] = []any{"Test"} // Build declared but not in completedStages
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: Build stage declared but did not complete")
 	}
@@ -196,7 +196,7 @@ func TestAttestGate_DenyMissingLibraryCall(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["calledLibrarySteps"] = []any{"jenkins-library::runTests"} // microservicePipeline missing
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: microservicePipeline not called")
 	}
@@ -206,7 +206,7 @@ func TestAttestGate_DenyAuditAnomaly(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["auditAnomalyCount"] = float64(1)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: audit anomaly detected")
 	}
@@ -216,7 +216,7 @@ func TestAttestGate_DenyUnexpectedNetwork(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodAttestCtx()
 	ctx["auditUnexpectedNetworkCount"] = float64(1)
-	dec := authorize(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: unexpected network connection")
 	}
@@ -232,6 +232,8 @@ func goodPromoteCtx(tier string) map[string]any {
 			"https://tuxgrid.com/attestation/tests/v1",
 			"https://tuxgrid.com/attestation/scan/v1",
 			"https://tuxgrid.com/attestation/pipeline/v1",
+			"slsaprovenance1",
+			"cyclonedx",
 		},
 		"scanAgeSeconds": float64(3600),
 	}
@@ -239,7 +241,7 @@ func goodPromoteCtx(tier string) map[string]any {
 
 func TestPromoteGate_AllowStaging(t *testing.T) {
 	ps := loadTestPolicies(t)
-	dec := authorize(ps, pipelineUID, promoteAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), goodPromoteCtx("staging"))
+	dec := runAuth(ps, pipelineUID, promoteAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), goodPromoteCtx("staging"))
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: staging promote with all attestations")
 	}
@@ -247,7 +249,7 @@ func TestPromoteGate_AllowStaging(t *testing.T) {
 
 func TestPromoteGate_AllowProduction(t *testing.T) {
 	ps := loadTestPolicies(t)
-	dec := authorize(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), goodPromoteCtx("production"))
+	dec := runAuth(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), goodPromoteCtx("production"))
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: production promote with all attestations and fresh scan")
 	}
@@ -261,7 +263,7 @@ func TestPromoteGate_DenyProductionMissingAttestation(t *testing.T) {
 		"https://tuxgrid.com/attestation/tests/v1",
 		// scan/v1 and pipeline/v1 missing
 	}
-	dec := authorize(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: production promote missing attestation types")
 	}
@@ -271,7 +273,7 @@ func TestPromoteGate_DenyProductionStaleScan(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodPromoteCtx("production")
 	ctx["scanAgeSeconds"] = float64(90000) // >24h
-	dec := authorize(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, promoteAction, imageUID, baseEntities(prodNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: production promote with stale scan")
 	}
@@ -281,7 +283,7 @@ func TestPromoteGate_AllowStagingMissingAttestation(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodPromoteCtx("staging")
 	ctx["attestationTypes"] = []any{"https://tuxgrid.com/attestation/build/v1"}
-	dec := authorize(ps, pipelineUID, promoteAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	dec := runAuth(ps, pipelineUID, promoteAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: staging promote does not require all attestations")
 	}
@@ -308,13 +310,15 @@ func goodTokenCtx(env string) map[string]any {
 			"https://tuxgrid.com/attestation/tests/v1",
 			"https://tuxgrid.com/attestation/scan/v1",
 			"https://tuxgrid.com/attestation/pipeline/v1",
+			"slsaprovenance1",
+			"cyclonedx",
 		},
 	}
 }
 
 func TestTokenGate_AllowStaging(t *testing.T) {
 	ps := loadTestPolicies(t)
-	dec := authorize(ps, teamUID, issueAction, envUID, mkTeamEntities(), goodTokenCtx("staging"))
+	dec := runAuth(ps, teamUID, issueAction, envUID, mkTeamEntities(), goodTokenCtx("staging"))
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: staging credential issuance with scan verified")
 	}
@@ -322,7 +326,7 @@ func TestTokenGate_AllowStaging(t *testing.T) {
 
 func TestTokenGate_AllowProduction(t *testing.T) {
 	ps := loadTestPolicies(t)
-	dec := authorize(ps, teamUID, issueAction, prodEnvUID, mkTeamEntities(), goodTokenCtx("production"))
+	dec := runAuth(ps, teamUID, issueAction, prodEnvUID, mkTeamEntities(), goodTokenCtx("production"))
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: production credential issuance with all attestations")
 	}
@@ -332,7 +336,7 @@ func TestTokenGate_DenyNoScanVerification(t *testing.T) {
 	ps := loadTestPolicies(t)
 	ctx := goodTokenCtx("staging")
 	ctx["scanAttestationVerified"] = false
-	dec := authorize(ps, teamUID, issueAction, envUID, mkTeamEntities(), ctx)
+	dec := runAuth(ps, teamUID, issueAction, envUID, mkTeamEntities(), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: scan attestation not verified")
 	}
@@ -346,7 +350,7 @@ func TestTokenGate_DenyProductionMissingAttestation(t *testing.T) {
 		"https://tuxgrid.com/attestation/scan/v1",
 		// tests/v1 and pipeline/v1 missing
 	}
-	dec := authorize(ps, teamUID, issueAction, prodEnvUID, mkTeamEntities(), ctx)
+	dec := runAuth(ps, teamUID, issueAction, prodEnvUID, mkTeamEntities(), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: production credentials require all four attestation types")
 	}
@@ -370,7 +374,7 @@ func TestAuditGap_AllowHealthyPipeline(t *testing.T) {
 			"https://tuxgrid.com/attestation/scan/v1",
 		},
 	}
-	dec := authorize(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
+	dec := runAuth(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: pipeline with recent attestation")
 	}
@@ -382,7 +386,7 @@ func TestAuditGap_DenyNeverAttested(t *testing.T) {
 		"lastAttestationAgeSeconds": float64(9223372036854775806), // sentinel max
 		"attestationTypes":          []any{},
 	}
-	dec := authorize(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
+	dec := runAuth(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: pipeline has never attested")
 	}
@@ -396,7 +400,7 @@ func TestAuditGap_DenyStale7Days(t *testing.T) {
 			"https://tuxgrid.com/attestation/scan/v1",
 		},
 	}
-	dec := authorize(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
+	dec := runAuth(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: no attestation in 7 days")
 	}
@@ -411,7 +415,7 @@ func TestAuditGap_DenyNoScanAttestation(t *testing.T) {
 			// scan/v1 missing
 		},
 	}
-	dec := authorize(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
+	dec := runAuth(ps, teamUID, auditAction, pipelineUID, mkAuditEntities(), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: pipeline has never produced scan/v1 attestation")
 	}
