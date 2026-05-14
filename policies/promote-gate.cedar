@@ -16,7 +16,9 @@ when {
     "https://tuxgrid.com/attestation/build/v1",
     "https://tuxgrid.com/attestation/tests/v1",
     "https://tuxgrid.com/attestation/scan/v1",
-    "https://tuxgrid.com/attestation/pipeline/v1"
+    "https://tuxgrid.com/attestation/pipeline/v1",
+    "slsaprovenance1",
+    "cyclonedx"
   ])
 };
 
