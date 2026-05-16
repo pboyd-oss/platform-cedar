@@ -2,22 +2,7 @@ pipeline {
     agent {
         kubernetes {
             cloud 'kubernetes'
-            inheritFrom 'platform-builder'
-            yaml '''
-                spec:
-                  containers:
-                  - name: golang
-                    image: harbor.tuxgrid.com/docker.io/golang:1.24-alpine
-                    command: [cat]
-                    tty: true
-                    resources:
-                      requests:
-                        cpu: 100m
-                        memory: 256Mi
-                      limits:
-                        cpu: 1
-                        memory: 512Mi
-            '''
+            inheritFrom 'platform-golang-builder'
         }
     }
 
