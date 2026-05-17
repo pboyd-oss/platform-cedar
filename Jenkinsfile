@@ -32,12 +32,5 @@ pipeline {
         stage('Archive')    { steps { script { platformArchive() } } }
         stage('Sign')       { steps { script { platformSign() } } }
         stage('Provenance') { steps { script { platformBuildProvenance() } } }
-        stage('Deploy') {
-            steps {
-                script {
-                    platformDeploy(workload: 'platform-cedar-sidecar', namespace: 'platform')
-                }
-            }
-        }
     }
 }
