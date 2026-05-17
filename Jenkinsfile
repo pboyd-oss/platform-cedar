@@ -1,7 +1,9 @@
+@Library('jenkins-library') _
+
 pipeline {
     agent {
         kubernetes {
-            cloud 'kubernetes'
+            cloud env.TUXGRID_BUILD_CLOUD
             inheritFrom 'platform-golang-builder'
         }
     }
@@ -21,16 +23,11 @@ pipeline {
     }
 
     stages {
-        stage('Test') {
-            steps {
-                container('golang') {
-                    sh 'cd cmd/cedar-sidecar && go test ./... -v -count=1'
-                }
-            }
-        }
+        stage('Test')       { steps { script { runTests(services: ['cmd/cedar-sidecar'], flags: '-v -count=1') } } }
         stage('Build')      { steps { script { platformBuild() } } }
         stage('Archive')    { steps { script { platformArchive() } } }
         stage('Sign')       { steps { script { platformSign() } } }
         stage('Provenance') { steps { script { platformBuildProvenance() } } }
+        stage('Promote')    { steps { script { platformPromote() } } }
     }
 }
