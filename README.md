@@ -15,6 +15,34 @@ Evaluates Cedar policies against Jenkins build state and returns an authorizatio
 
 Policies are mounted as a ConfigMap at runtime. A policy change is a `git push` — no image rebuild needed.
 
+## Deployment
+
+This repo has two separate kustomize configurations with different owners:
+
+### `kustomization.yaml` (repo root) — ArgoCD managed
+
+Generates the `cedar-policies` ConfigMap from the `policies/` directory. ArgoCD in `talos-argocd-proxmox` references this repo directly as a remote kustomize base:
+
+```yaml
+# talos-argocd-proxmox/my-apps/development/platform-cedar/kustomization.yaml
+resources:
+  - github.com/pboyd-oss/platform-cedar?ref=main
+```
+
+**A policy change is just a `git push` to `main`.** ArgoCD syncs the ConfigMap on next reconcile — no image rebuild, no changes to `talos-argocd-proxmox`.
+
+### `k8s/kustomization.yaml` — Jenkins release pipeline managed
+
+Deploys the Deployment, Service, and HTTPRoute via `skaffold apply` through the platform release pipeline (`platform/services/cedar-sidecar/release`). Also generates the ConfigMap via `configMapGenerator` (using `--load-restrictor=LoadRestrictionsNone` because the policy files are outside `k8s/`), but in practice ArgoCD manages the ConfigMap so the Jenkins pipeline only needs to handle the workload resources.
+
+### Summary
+
+| What | Who deploys it | How to update |
+|------|---------------|---------------|
+| `cedar-policies` ConfigMap | ArgoCD | Push policy changes to `policies/` on `main` |
+| Deployment / Service / HTTPRoute | Jenkins release pipeline | Merge to `main`, Jenkins builds and promotes |
+| Image | Jenkins build pipeline | Automatic on push via `platform/services/cedar-sidecar/build` |
+
 ## Running locally
 
 ```bash
