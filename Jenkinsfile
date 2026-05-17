@@ -23,6 +23,11 @@ pipeline {
     }
 
     stages {
+        stage('Source Scan') {
+            steps {
+                build job: 'platform/services/cedar-sidecar/source-scan', wait: true
+            }
+        }
         stage('Test')       { steps { script { runTests(services: ['cmd/cedar-sidecar'], flags: '-v -count=1') } } }
         stage('Build')      { steps { script { platformBuild() } } }
         stage('Archive')    { steps { script { platformArchive() } } }
