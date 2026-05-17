@@ -119,7 +119,7 @@ func loadPolicies(dir string) (*cedar.PolicySet, error) {
 
 	combined := cedar.NewPolicySet()
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".cedar") {
 			continue
 		}
 		data, err := os.ReadFile(dir + "/" + entry.Name())
