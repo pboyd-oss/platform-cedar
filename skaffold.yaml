@@ -7,6 +7,8 @@ manifests:
   kustomize:
     paths:
       - k8s/
+    buildArgs:
+      - --load-restrictor=LoadRestrictionsNone
 deploy:
   kubectl: {}
 profiles:
@@ -15,3 +17,5 @@ profiles:
       kustomize:
         paths:
           - k8s/
+        buildArgs:
+          - --load-restrictor=LoadRestrictionsNone
