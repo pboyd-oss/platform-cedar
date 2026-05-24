@@ -14,7 +14,7 @@ spec:
     namespace: gateway
     sectionName: https
   hostnames:
-  - cedar.platform.tuxgrid.com
+  - cedar.tuxgrid.com
   rules:
   - backendRefs:
     - name: platform-cedar-sidecar
