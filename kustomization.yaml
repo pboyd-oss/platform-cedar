@@ -7,5 +7,6 @@ configMapGenerator:
       - policies/promote-gate.cedar
       - policies/audit-gap.cedar
       - policies/token-gate.cedar
+      - policies/no-custom-jenkinsfile.cedar
 generatorOptions:
   disableNameSuffixHash: true
