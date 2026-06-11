@@ -30,17 +30,18 @@ when {
   context has customStepCount && context.customStepCount > 0
 };
 
-// ---- FUTURE (source-level, catches raw Groovy too) ----------------------------------
-// Enable once the source-scan job parses the repo Jenkinsfile and the coordinator emits
-// context.jenkinsfileApproved (add it to the schema + cedar.go ctx first):
-//
-// @reason("strict pipeline: Jenkinsfile does not match an approved platform template")
-// forbid (
-//   principal is TuxGrid::Pipeline,
-//   action == TuxGrid::Action::"Attest",
-//   resource is TuxGrid::Image
-// )
-// when {
-//   principal has strictPipeline && principal.strictPipeline &&
-//   (!(context has jenkinsfileApproved) || !context.jenkinsfileApproved)
-// };
+// Source-level gate (catches raw script-level Groovy that emits no FlowNode, which
+// customStepCount cannot see). context.jenkinsfileApproved is set by the shim: it reads
+// the pipeline script via CpsFlowExecution and checks it is a "thin" Jenkinsfile
+// (invokes microservicePipeline and contains no script{}/node{}/sh/.execute()/@NonCPS/
+// reflection). Fail-closed for strict pipelines: absent or false => deny.
+@reason("strict pipeline: Jenkinsfile is not an approved thin platform template")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when {
+  principal has strictPipeline && principal.strictPipeline &&
+  (!(context has jenkinsfileApproved) || !context.jenkinsfileApproved)
+};

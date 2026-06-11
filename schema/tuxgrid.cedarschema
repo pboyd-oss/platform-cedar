@@ -45,6 +45,7 @@ namespace TuxGrid {
       "auditUnexpectedNetworkCount": Long,
       "hasUnpinnedLibraries":        Bool,
       "customStepCount"?:            Long,
+      "jenkinsfileApproved"?:        Bool,
     }
   };
 
