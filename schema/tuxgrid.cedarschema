@@ -48,6 +48,7 @@ namespace TuxGrid {
       "jenkinsfileApproved"?:        Bool,
       "sandboxViolationCount"?:      Long,
       "tetragonExecsObserved"?:      Long,
+      "groovyRuntimeCalls"?:         Long,
     }
   };
 

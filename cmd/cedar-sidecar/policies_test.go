@@ -435,6 +435,7 @@ func strictAttestCtx() map[string]any {
 	c["customStepCount"] = float64(0)
 	c["sandboxViolationCount"] = float64(0)
 	c["tetragonExecsObserved"] = float64(12)
+	c["groovyRuntimeCalls"] = float64(7)
 	return c
 }
 
@@ -507,5 +508,25 @@ func TestWitnessDark_NonStrictUnaffected(t *testing.T) {
 	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
 	if dec != cedar.Allow {
 		t.Error("expected ALLOW: non-strict pipeline unaffected by witness-dark rule")
+	}
+}
+
+func TestTracerDark_DenyStrict(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["groovyRuntimeCalls"] = float64(0)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline with dark Groovy runtime tracer (0 events)")
+	}
+}
+
+func TestTracerDark_NonStrictUnaffected(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := goodAttestCtx()
+	ctx["groovyRuntimeCalls"] = float64(0)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	if dec != cedar.Allow {
+		t.Error("expected ALLOW: non-strict pipeline unaffected by tracer-dark rule")
 	}
 }
