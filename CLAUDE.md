@@ -1,5 +1,9 @@
 # platform-cedar
 
+## Purpose
+
+The cedar sidecar is the policy-as-code authorization engine for the TuxGrid build-integrity platform. It is a stateless Go HTTP server that evaluates Cedar policy files against structured build context, returning ALLOW or DENY with human-readable reasons. It sits at the center of the capability-gate chain: the attest-coordinator, token-service, and release pipeline all call `POST /authorize` before granting any capability (image signing, AWS credentials, production promotion), so every gate in the chain is reducible to a Cedar policy change with no image rebuild required.
+
 Cedar policy sidecar for the TuxGrid platform attestation pipeline. A stateless Go HTTP server that loads `.cedar` policy files from a directory at startup and evaluates authorization requests via `POST /authorize`. No database. Policies are mounted as a ConfigMap, so a policy change is a `git push` with no image rebuild.
 
 ## What it does
