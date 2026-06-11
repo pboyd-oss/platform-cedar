@@ -16,6 +16,7 @@ namespace TuxGrid {
     "hasAuditId": Bool,
     "declaredBuild": Bool,
     "declaredTest": Bool,
+    "strictPipeline"?: Bool,
   };
 
   entity Image {
@@ -43,6 +44,7 @@ namespace TuxGrid {
       "auditAnomalyCount":          Long,
       "auditUnexpectedNetworkCount": Long,
       "hasUnpinnedLibraries":        Bool,
+      "customStepCount"?:            Long,
     }
   };
 
