@@ -420,3 +420,92 @@ func TestAuditGap_DenyNoScanAttestation(t *testing.T) {
 		t.Error("expected DENY: pipeline has never produced scan/v1 attestation")
 	}
 }
+
+// --- strict-tier (no-custom-jenkinsfile) + witness-dark tests ---------------
+
+func strictPipelineAttrs() map[string]any {
+	a := goodPipelineAttrs()
+	a["strictPipeline"] = true
+	return a
+}
+
+func strictAttestCtx() map[string]any {
+	c := goodAttestCtx()
+	c["jenkinsfileApproved"] = true
+	c["customStepCount"] = float64(0)
+	c["sandboxViolationCount"] = float64(0)
+	c["tetragonExecsObserved"] = float64(12)
+	return c
+}
+
+func TestStrict_AllowThinPipeline(t *testing.T) {
+	ps := loadTestPolicies(t)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), strictAttestCtx())
+	if dec != cedar.Allow {
+		t.Error("expected ALLOW: strict thin pipeline with no violations")
+	}
+}
+
+func TestStrict_DenyCustomStep(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["customStepCount"] = float64(1)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline ran a custom step outside jenkins-library")
+	}
+}
+
+func TestStrict_DenyUnapprovedJenkinsfile(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["jenkinsfileApproved"] = false
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline Jenkinsfile not an approved thin template")
+	}
+}
+
+func TestStrict_DenySandboxViolation(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["sandboxViolationCount"] = float64(1)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline attempted a blocked Groovy operation")
+	}
+}
+
+func TestStrict_NonStrictUnaffected(t *testing.T) {
+	ps := loadTestPolicies(t)
+	// A non-strict pipeline with custom steps, unapproved Jenkinsfile, and a sandbox
+	// violation must still ALLOW — strict rules are gated on principal.strictPipeline.
+	ctx := goodAttestCtx()
+	ctx["customStepCount"] = float64(5)
+	ctx["jenkinsfileApproved"] = false
+	ctx["sandboxViolationCount"] = float64(3)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	if dec != cedar.Allow {
+		t.Error("expected ALLOW: non-strict pipeline is unaffected by strict-tier rules")
+	}
+}
+
+func TestWitnessDark_DenyStrict(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["tetragonExecsObserved"] = float64(0)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline with dark Tetragon witness (execs==0)")
+	}
+}
+
+func TestWitnessDark_NonStrictUnaffected(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := goodAttestCtx()
+	ctx["tetragonExecsObserved"] = float64(0)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
+	if dec != cedar.Allow {
+		t.Error("expected ALLOW: non-strict pipeline unaffected by witness-dark rule")
+	}
+}

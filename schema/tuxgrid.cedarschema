@@ -46,6 +46,8 @@ namespace TuxGrid {
       "hasUnpinnedLibraries":        Bool,
       "customStepCount"?:            Long,
       "jenkinsfileApproved"?:        Bool,
+      "sandboxViolationCount"?:      Long,
+      "tetragonExecsObserved"?:      Long,
     }
   };
 

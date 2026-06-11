@@ -45,3 +45,18 @@ when {
   principal has strictPipeline && principal.strictPipeline &&
   (!(context has jenkinsfileApproved) || !context.jenkinsfileApproved)
 };
+
+// Runtime gate (catches what static analysis cannot): the Groovy sandbox interceptor
+// (PlatformGroovyInterceptor) counts denied escape-primitive calls per build. Any blocked
+// Groovy operation attempted by a strict pipeline => deny. context.sandboxViolationCount is
+// set by the attest shim from the interceptor's groovy-calls.json artifact; has-guarded.
+@reason("strict pipeline: blocked Groovy operations were attempted (sandbox interceptor denials > 0)")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when {
+  principal has strictPipeline && principal.strictPipeline &&
+  context has sandboxViolationCount && context.sandboxViolationCount > 0
+};
