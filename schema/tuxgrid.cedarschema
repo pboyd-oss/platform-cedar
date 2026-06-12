@@ -45,6 +45,8 @@ namespace TuxGrid {
       "auditUnexpectedNetworkCount": Long,
       "hasUnpinnedLibraries":        Bool,
       "customStepCount"?:            Long,
+      "customSyscallSiteCount"?:     Long,
+      "libraryDigestMismatchCount"?: Long,
       "jenkinsfileApproved"?:        Bool,
       "sandboxViolationCount"?:      Long,
       "tetragonExecsObserved"?:      Long,

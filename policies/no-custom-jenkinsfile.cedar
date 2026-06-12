@@ -60,3 +60,22 @@ when {
   principal has strictPipeline && principal.strictPipeline &&
   context has sandboxViolationCount && context.sandboxViolationCount > 0
 };
+
+// Compile-time gate (catches the non-step blind spot the runtime customStepCount and the
+// evadable jenkinsfileApproved text scan miss): the all-origins call-site recorder
+// (PlatformGroovyCallSiteRecorder) classifies every compiled Groovy call site by bytecode
+// origin and tags the ones reaching a syscall gateway (.execute()/reflection/codeload/...).
+// context.customSyscallSiteCount = such call sites whose origin is NOT a proven trusted
+// library (team or 'unattributed' — fail-closed attribution). Any team-origin Groovy that
+// reaches a kernel gateway at compile time => deny. Computed independently by the
+// audit-service from the raw events. has-guarded so non-strict principals are unaffected.
+@reason("strict pipeline: team/non-library Groovy reached a syscall gateway (custom code outside jenkins-library)")
+forbid (
+  principal is TuxGrid::Pipeline,
+  action == TuxGrid::Action::"Attest",
+  resource is TuxGrid::Image
+)
+when {
+  principal has strictPipeline && principal.strictPipeline &&
+  context has customSyscallSiteCount && context.customSyscallSiteCount > 0
+};

@@ -8,5 +8,6 @@ configMapGenerator:
       - policies/audit-gap.cedar
       - policies/token-gate.cedar
       - policies/no-custom-jenkinsfile.cedar
+      - policies/library-integrity.cedar
 generatorOptions:
   disableNameSuffixHash: true

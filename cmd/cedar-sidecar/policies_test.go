@@ -60,7 +60,7 @@ var (
 	envUID      = euid("TuxGrid::Environment", "staging")
 	prodEnvUID  = euid("TuxGrid::Environment", "production")
 
-	attestAction = euid("TuxGrid::Action", "Attest")
+	attestAction  = euid("TuxGrid::Action", "Attest")
 	promoteAction = euid("TuxGrid::Action", "Promote")
 	issueAction   = euid("TuxGrid::Action", "IssueCredentials")
 	auditAction   = euid("TuxGrid::Action", "AuditCompliance")
@@ -301,9 +301,9 @@ func mkTeamEntities() cedar.EntityMap {
 
 func goodTokenCtx(env string) map[string]any {
 	return map[string]any{
-		"role_arn":    "arn:aws:iam::123456789012:role/my-team-staging",
-		"image_ref":   "harbor.tuxgrid.com/my-team/my-app@sha256:abc",
-		"environment": env,
+		"role_arn":                "arn:aws:iam::123456789012:role/my-team-staging",
+		"image_ref":               "harbor.tuxgrid.com/my-team/my-app@sha256:abc",
+		"environment":             env,
 		"scanAttestationVerified": true,
 		"attestationTypes": []any{
 			"https://tuxgrid.com/attestation/build/v1",
@@ -433,6 +433,8 @@ func strictAttestCtx() map[string]any {
 	c := goodAttestCtx()
 	c["jenkinsfileApproved"] = true
 	c["customStepCount"] = float64(0)
+	c["customSyscallSiteCount"] = float64(0)
+	c["libraryDigestMismatchCount"] = float64(0)
 	c["sandboxViolationCount"] = float64(0)
 	c["tetragonExecsObserved"] = float64(12)
 	c["groovyRuntimeCalls"] = float64(7)
@@ -454,6 +456,26 @@ func TestStrict_DenyCustomStep(t *testing.T) {
 	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
 	if dec != cedar.Deny {
 		t.Error("expected DENY: strict pipeline ran a custom step outside jenkins-library")
+	}
+}
+
+func TestStrict_DenyCustomSyscallSite(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["customSyscallSiteCount"] = float64(1)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline had team-origin Groovy reach a syscall gateway")
+	}
+}
+
+func TestStrict_DenyLibraryDigestMismatch(t *testing.T) {
+	ps := loadTestPolicies(t)
+	ctx := strictAttestCtx()
+	ctx["libraryDigestMismatchCount"] = float64(1)
+	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, strictPipelineAttrs()), ctx)
+	if dec != cedar.Deny {
+		t.Error("expected DENY: strict pipeline loaded a trusted library whose code did not match its expected digest")
 	}
 }
 
@@ -483,6 +505,8 @@ func TestStrict_NonStrictUnaffected(t *testing.T) {
 	// violation must still ALLOW — strict rules are gated on principal.strictPipeline.
 	ctx := goodAttestCtx()
 	ctx["customStepCount"] = float64(5)
+	ctx["customSyscallSiteCount"] = float64(4)
+	ctx["libraryDigestMismatchCount"] = float64(2)
 	ctx["jenkinsfileApproved"] = false
 	ctx["sandboxViolationCount"] = float64(3)
 	dec := runAuth(ps, pipelineUID, attestAction, imageUID, baseEntities(stagingNs, goodPipelineAttrs()), ctx)
